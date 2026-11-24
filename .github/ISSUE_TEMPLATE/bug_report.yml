@@ -1,0 +1,124 @@
+name: Bug report
+description: Something isn't working as expected (non-security).
+labels: [bug]
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Do not report security vulnerabilities here**:
+        follow [SECURITY.md](../blob/main/SECURITY.md) instead.
+
+        Never paste access tokens, the output of a `token_cmd`, or the
+        contents of `~/.config/gh` / `glab` config files. Redact tokens
+        (`ghp_…REDACTED`, `glpat-…REDACTED`) and, if you prefer, private
+        repository and host names before you submit.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+      placeholder: "The job ran at 02:13 but the pull request was not opened; I expected …"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran, the relevant part of your config (`nightshift config show`, redacted), and what the job looked like (`nightshift show <id>`).
+      placeholder: |
+        1. `nightshift commit -am "feat: parse nested blocks"`
+        2. `nightshift pr create --fill`
+        3. The runner picks the jobs up at night and …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: nightshift version
+      description: The output of `nightshift version`.
+      placeholder: "v0.1.0 (abc1234, 2026-11-24)"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: OS, version and architecture.
+      placeholder: "macOS 15.2 arm64, Ubuntu 24.04 amd64, Windows 11 …"
+    validations:
+      required: true
+  - type: input
+    id: git
+    attributes:
+      label: git version
+      description: The output of `git --version`.
+      placeholder: "git version 2.47.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: host
+    attributes:
+      label: Git host
+      options:
+        - GitHub
+        - GitHub Enterprise
+        - GitLab (gitlab.com)
+        - Self-managed GitLab
+        - Other / none (push only)
+    validations:
+      required: true
+  - type: dropdown
+    id: pr-method
+    attributes:
+      label: Pull request method
+      description: How nightshift opened (or tried to open) the pull request. `nightshift doctor` shows which one it uses.
+      options:
+        - gh
+        - glab
+        - REST API (token)
+        - Not involved (no pull request)
+    validations:
+      required: true
+  - type: dropdown
+    id: signing
+    attributes:
+      label: Commit signing
+      description: What git signs with (`git config gpg.format`, `commit.gpgSign`) and nightshift's `sign` setting.
+      options:
+        - None
+        - SSH key
+        - GPG (OpenPGP)
+        - X.509 (gpgsm / smimesign)
+        - 1Password (op-ssh-sign)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: runner
+    attributes:
+      label: How the runner runs
+      options:
+        - Service (`nightshift service install`)
+        - Daemon (`nightshift daemon`, started by me)
+        - cron / a scheduler calling `nightshift run`
+        - Manually (`nightshift run`)
+        - Not involved (the problem is in commit / push / config)
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `nightshift doctor` (redacted)
+      description: Run it in the affected repository, as the same user the runner runs as. It never prints tokens, but check before you paste.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Other relevant output (redacted)
+      description: Error messages, the job's last error (`nightshift show <id>`), the runner's log. Never paste tokens or credentials.
+      render: text
+    validations:
+      required: false

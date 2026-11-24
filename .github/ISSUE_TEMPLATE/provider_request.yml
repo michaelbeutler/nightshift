@@ -1,0 +1,73 @@
+name: Provider request
+description: Ask for (or offer to build) support for another git host.
+labels: [enhancement, provider]
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        nightshift pushes to any git remote already; a *provider* is what
+        opens the pull request afterwards. Today there are two, GitHub and
+        GitLab (`internal/provider`). Adding one is a self-contained change
+        and a good first contribution: CONTRIBUTING.md ("Good first
+        contributions") says what it involves.
+  - type: dropdown
+    id: host
+    attributes:
+      label: Git host
+      options:
+        - Gitea / Forgejo (Codeberg, self-hosted)
+        - Bitbucket Cloud
+        - Bitbucket Data Center / Server
+        - Azure DevOps
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: other
+    attributes:
+      label: Other host
+      description: If you picked "Other", which one, and is it hosted or self-managed?
+    validations:
+      required: false
+  - type: input
+    id: cli
+    attributes:
+      label: CLI tool
+      description: The host's own command-line tool, if it has one that can open pull requests (like `gh` or `glab`), so nightshift can reuse its login.
+      placeholder: "tea, fj, bb, az repos pr …, or none"
+    validations:
+      required: false
+  - type: input
+    id: api-docs
+    attributes:
+      label: API documentation
+      description: A link to the API endpoint that creates a pull request (and, ideally, the one that finds an existing one for a branch).
+      placeholder: https://…
+    validations:
+      required: true
+  - type: textarea
+    id: auth
+    attributes:
+      label: Authentication
+      description: How a token for that API is usually obtained (personal access token, app password, …), and which scopes creating a pull request needs.
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: "Quirks you know of: fork workflows, draft pull requests, how the host's remote URLs look, an SSH host alias it uses."
+    validations:
+      required: false
+  - type: dropdown
+    id: implement
+    attributes:
+      label: Would you like to implement it?
+      options:
+        - Yes, I'd like to open the pull request
+        - Yes, with some guidance
+        - No, but I can test it against a real account
+        - No
+    validations:
+      required: true

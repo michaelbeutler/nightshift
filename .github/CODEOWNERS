@@ -1,0 +1,22 @@
+# CODEOWNERS for nightshift.
+#
+# One owner for the whole repository while it is small; split by path
+# (internal/provider, internal/engine, .github) once there is more than one
+# reviewer to route to. Last matching rule wins.
+
+*                   @michaelbeutler
+
+# Supply chain and release: workflows, dependency policy, the scripts CI runs,
+# and the goreleaser file that decides what goes into a release.
+/.github/           @michaelbeutler
+/scripts/           @michaelbeutler
+/.goreleaser.yaml   @michaelbeutler
+/go.mod             @michaelbeutler
+/go.sum             @michaelbeutler
+
+# What runs unattended with the user's credentials: pushing, signing, the
+# provider APIs and tokens, the service units.
+/internal/engine/   @michaelbeutler
+/internal/git/      @michaelbeutler
+/internal/provider/ @michaelbeutler
+/internal/service/  @michaelbeutler
