@@ -1,0 +1,95 @@
+name: Release
+
+# A tag vX.Y.Z publishes a release, and vX.Y.Z-rc.N a release candidate (a
+# GitHub pre-release). goreleaser (.goreleaser.yaml) builds nightshift for
+# macOS, Linux and Windows on amd64 and arm64, archives each build with the
+# README and the LICENSE, writes checksums.txt, and publishes all of it as a
+# GitHub release whose notes come from the conventional commits since the
+# previous release (scripts/release-notes.sh). A release tag must name a
+# commit that was main's head; a candidate may be cut from any branch.
+# CONTRIBUTING.md ("Releasing") says how to cut one.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
+
+permissions: {}
+
+# One run per tag, never cancelled halfway.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Keep equal to ci.yml, whose build job runs `goreleaser check` with it.
+  GORELEASER_VERSION: v2.20.3
+
+jobs:
+  release:
+    name: GitHub release (goreleaser)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # create the release and upload the archives
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # main's history, and the tags back to the previous release
+          persist-credentials: false
+
+      - name: The tag is a version, and a release tag is on main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! $TAG =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.(0|[1-9][0-9]*))?$ ]]; then
+            echo "::error::$TAG is neither vX.Y.Z nor vX.Y.Z-rc.N"
+            exit 1
+          fi
+          # goreleaser marks the -rc.N candidates as pre-releases on its own
+          # (`prerelease: auto` in .goreleaser.yaml); here they are only
+          # exempt from the main check below.
+          prerelease=false
+          if [ -n "${BASH_REMATCH[4]}" ]; then prerelease=true; fi
+          commit=$(git rev-parse "$TAG^{commit}")
+          # main's first-parent line holds the commits main pointed at; one
+          # merely reachable from main may be a branch commit main never was.
+          # grep reads the whole list (no -q), so pipefail sees no SIGPIPE.
+          if [ "$prerelease" = false ] && ! git rev-list --first-parent origin/main | grep -x "$commit" >/dev/null; then
+            echo "::error::$TAG names $commit, which was never the head of main. Tag a release on main; a candidate (vX.Y.Z-rc.N) may be tagged anywhere."
+            exit 1
+          fi
+
+      # The newest Go, not go.mod's minimum: every release binary carries the
+      # standard library it was built with, so it should carry the latest
+      # patched one (the same Go CI's govulncheck job checks against).
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: stable
+
+      # The tag may name a commit CI never saw (a candidate on a branch), so
+      # the tests run once more before anything is published. They commit in
+      # throwaway repositories with the real git, which needs an identity.
+      - name: The module builds and its tests pass
+        run: |
+          set -euo pipefail
+          git config --global user.name "nightshift CI"
+          git config --global user.email "ci@nightshift.invalid"
+          git config --global init.defaultBranch main
+          go build ./...
+          go test ./...
+
+      # Outside the checkout: goreleaser refuses to release from a working
+      # tree with untracked files in it.
+      - name: Write the release notes
+        run: scripts/release-notes.sh "$GITHUB_REF_NAME" >"$RUNNER_TEMP/notes.md"
+
+      - name: Build and publish with goreleaser
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          distribution: goreleaser
+          version: ${{ env.GORELEASER_VERSION }}
+          args: release --clean --release-notes ${{ runner.temp }}/notes.md
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
