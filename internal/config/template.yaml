@@ -1,0 +1,53 @@
+# nightshift configuration. Every key can also be set with an environment
+# variable: NIGHTSHIFT_ + the key in upper case with dots as underscores,
+# e.g. NIGHTSHIFT_SCHEDULE_WINDOW=02:00-05:00.
+
+# The remote to push to when the branch does not name one
+# (branch.<name>.pushRemote, remote.pushDefault and branch.<name>.remote win).
+remote: origin
+
+# Sign the commits nightshift creates at night: "auto" follows git's
+# commit.gpgSign, "always" or "never" override it. Signing happens at night,
+# so the key must work unattended (`nightshift doctor` checks it).
+sign: auto
+
+# Desktop notifications from the runner: failures, all, or off.
+notify: failures
+
+schedule:
+  # The nightly window new work goes into when you give no --at.
+  window: "01:00-04:00"
+  # The random gap between consecutive commits, the push and the PR.
+  spacing: "3m-15m"
+  # The machine slept through a job: "run" it when it wakes (the commit
+  # dates still say night), or move it to the "next-window".
+  missed: run
+  # How late a job may run before "missed" applies.
+  grace: 2h
+
+pr:
+  # auto: gh or glab when installed and logged in, else the REST API.
+  # cli:  always gh / glab.  api: always the REST API.
+  method: auto
+  # The target branch; empty means the repository's default branch.
+  base: ""
+  draft: false
+  reviewers: []
+  assignees: []
+  labels: []
+
+runner:
+  # How often `nightshift daemon` looks for due jobs.
+  interval: 30s
+  # How often a failed push or PR is retried, with backoff, before it fails.
+  retries: 3
+
+# Self-hosted GitHub Enterprise or GitLab hosts, and hosts whose name does not
+# say what they are. github.com, *.ghe.com and gitlab.com need no entry, and
+# SSH aliases from ~/.ssh/config are resolved automatically.
+providers: []
+#  - host: git.example.com
+#    type: gitlab                         # github | gitlab
+#    api: https://git.example.com/api/v4  # optional, derived from host
+#    token_env: EXAMPLE_GITLAB_TOKEN      # optional, read the token from here
+#    token_cmd: op read op://dev/gitlab/token   # optional, or run this
