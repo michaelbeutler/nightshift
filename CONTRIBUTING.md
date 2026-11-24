@@ -374,8 +374,8 @@ a GitHub release. `go install github.com/michaelbeutler/nightshift@vX.Y.Z`
 works from the tag alone.
 
 - `vX.Y.Z` is a release. It must name a commit that was `main`'s head.
-- `vX.Y.Z-rc.N` is a release candidate, published as a GitHub pre-release,
-  and may be tagged on any branch.
+- `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N` and `vX.Y.Z-rc.N` are pre-releases,
+  published as GitHub pre-releases, and may be tagged on any branch.
 
 Pick the version from what landed since the last release, by semantic
 versioning: before 1.0, a breaking change bumps the minor version and

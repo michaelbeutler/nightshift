@@ -15,8 +15,9 @@
 # merge whose subject is not conventional (main merged into a branch) stands for
 # nothing, so what it brought in is listed on its own. A squash merge is a single
 # conventional commit and needs no special case. The previous release is the
-# newest vX.Y.Z tag behind this one; candidates (-rc.N) are passed over, so a
-# candidate's notes cover everything the release would ship.
+# newest vX.Y.Z tag behind this one; pre-releases (-alpha.N, -beta.N, -rc.N)
+# are passed over, so a pre-release's notes cover everything the release
+# would ship.
 #
 #   scripts/release-notes.sh <tag>      (or: just release-notes <tag>)
 #

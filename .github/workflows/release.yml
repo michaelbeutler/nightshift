@@ -1,17 +1,19 @@
 name: Release
 
-# A tag vX.Y.Z publishes a release, and vX.Y.Z-rc.N a release candidate (a
-# GitHub pre-release). goreleaser (.goreleaser.yaml) builds nightshift for
+# A tag vX.Y.Z publishes a release, and vX.Y.Z-alpha.N, -beta.N or -rc.N a
+# pre-release (a GitHub pre-release). goreleaser (.goreleaser.yaml) builds nightshift for
 # macOS, Linux and Windows on amd64 and arm64, archives each build with the
 # README and the LICENSE, writes checksums.txt, and publishes all of it as a
 # GitHub release whose notes come from the conventional commits since the
 # previous release (scripts/release-notes.sh). A release tag must name a
-# commit that was main's head; a candidate may be cut from any branch.
+# commit that was main's head; a pre-release may be cut from any branch.
 # CONTRIBUTING.md ("Releasing") says how to cut one.
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
 
 permissions: {}
@@ -43,11 +45,11 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if [[ ! $TAG =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.(0|[1-9][0-9]*))?$ ]]; then
-            echo "::error::$TAG is neither vX.Y.Z nor vX.Y.Z-rc.N"
+          if [[ ! $TAG =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)\.(0|[1-9][0-9]*))?$ ]]; then
+            echo "::error::$TAG is neither vX.Y.Z nor vX.Y.Z-alpha.N, -beta.N or -rc.N"
             exit 1
           fi
-          # goreleaser marks the -rc.N candidates as pre-releases on its own
+          # goreleaser marks the -alpha.N, -beta.N and -rc.N tags as pre-releases on its own
           # (`prerelease: auto` in .goreleaser.yaml); here they are only
           # exempt from the main check below.
           prerelease=false
@@ -57,7 +59,7 @@ jobs:
           # merely reachable from main may be a branch commit main never was.
           # grep reads the whole list (no -q), so pipefail sees no SIGPIPE.
           if [ "$prerelease" = false ] && ! git rev-list --first-parent origin/main | grep -x "$commit" >/dev/null; then
-            echo "::error::$TAG names $commit, which was never the head of main. Tag a release on main; a candidate (vX.Y.Z-rc.N) may be tagged anywhere."
+            echo "::error::$TAG names $commit, which was never the head of main. Tag a release on main; a pre-release (vX.Y.Z-beta.N, say) may be tagged anywhere."
             exit 1
           fi
 
