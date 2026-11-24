@@ -1,6 +1,6 @@
 [![CI](https://github.com/michaelbeutler/nightshift/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelbeutler/nightshift/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/michaelbeutler/nightshift?sort=semver)](https://github.com/michaelbeutler/nightshift/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/michaelbeutler/nightshift)](https://goreportcard.com/report/github.com/michaelbeutler/nightshift)
+[![Go](https://img.shields.io/github/go-mod/go-version/michaelbeutler/nightshift)](go.mod)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 # ☾ nightshift
