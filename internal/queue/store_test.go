@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -59,8 +60,12 @@ func TestStoreRoundTrip(t *testing.T) {
 	if _, err := s.Load(ids[0]); !errors.Is(err, ErrNotFound) {
 		t.Errorf("Load(removed) error = %v", err)
 	}
-	if fi, err := os.Stat(filepath.Join(s.Dir(), "jobs", ids[1]+".json")); err != nil || fi.Mode().Perm()&0o077 != 0 {
-		t.Errorf("job files must be private: %v %v", fi, err)
+	// Windows has no Unix permission bits (Go reports 0666); there the job
+	// files are private because the state directory is in the user's profile.
+	if runtime.GOOS != "windows" {
+		if fi, err := os.Stat(filepath.Join(s.Dir(), "jobs", ids[1]+".json")); err != nil || fi.Mode().Perm()&0o077 != 0 {
+			t.Errorf("job files must be private: %v %v", fi, err)
+		}
 	}
 }
 
