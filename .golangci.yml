@@ -1,0 +1,185 @@
+# golangci-lint configuration (v2 schema).
+# Docs: https://golangci-lint.run/usage/configuration/
+#
+# Adapted from cobra-oauth2's (itself nauthera-server's, scaled down): the same
+# security-grade baseline, minus the rules that only make sense for a library
+# or an OAuth client. nightshift runs git, gh/glab and token commands
+# unattended with the user's credentials, so gosec and the error checks stay
+# as strict as there. Pin the binary to the version CI installs
+# (GOLANGCI_LINT_VERSION in .github/workflows/ci.yml; `just install-tools`).
+version: "2"
+
+run:
+  # run.go is left to go.mod's go directive. Releases are built with a newer
+  # Go, but the directive is what `go install` users may build with and what
+  # decides the language features the code may use, so it is the Go to lint
+  # for.
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  # Start from an empty set and turn on exactly what we want.
+  default: none
+  enable:
+    - errcheck       # unchecked errors
+    - govet          # suspicious constructs
+    - staticcheck    # broad correctness/style analysis
+    - revive         # doc comments, naming, error strings
+    - gosec          # security issues
+    - errorlint      # correct error wrapping / comparisons
+    - bodyclose      # http.Response.Body must be closed
+    - noctx          # no HTTP request or subprocess without a context
+    - gocritic       # opinionated diagnostics
+    - ineffassign    # ineffectual assignments
+    - unused         # unused code
+    - misspell       # commonly misspelled English words
+    - depguard       # packages this module must not import
+    - forbidigo      # the CLI writes to the writers it was given
+    - errname        # error types named XxxError, sentinels ErrXxx
+    - nilerr         # returning nil after checking err != nil
+    - nolintlint     # every //nolint names its linter and says why
+    - usestdlibvars  # http.MethodPost, http.StatusOK, not literals
+    - usetesting     # t.Context, t.TempDir, t.Setenv in tests
+    - copyloopvar    # pre-1.22 loop variable copies
+    - gocheckcompilerdirectives # malformed //go: directives
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      # `_ = f()` is an accepted, deliberate way to ignore an error (a Close on
+      # a response body already read, a best-effort desktop notification).
+      check-blank: false
+    depguard:
+      rules:
+        main:
+          list-mode: lax
+          # math/rand is not banned here, unlike cobra-oauth2: the run time
+          # inside the night window and the spacing between pushes are
+          # jittered with math/rand/v2, which is what it is for. Nothing in
+          # nightshift generates a secret; if that ever changes, it comes
+          # from crypto/rand, and gosec's G404 flags every math/rand call
+          # that is not marked `//nolint:gosec // G404: <why>`.
+          deny:
+            - pkg: io/ioutil
+              desc: deprecated; use io and os
+            - pkg: github.com/pkg/errors
+              desc: use the standard library's errors and fmt.Errorf with %w
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # noisy for option/config structs
+        - shadow         # `if err := f(); …` shadowing is idiomatic Go, not a bug
+    staticcheck:
+      checks:
+        - all
+    revive:
+      severity: warning
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+          arguments:
+            - allowTypesBefore: "*testing.T" # t is conventionally first in test helpers
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: package-comments
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: var-declaration
+        - name: var-naming
+        - name: errorf
+        - name: import-alias-naming
+        - name: unexported-naming
+    gosec:
+      excludes:
+        - G115 # integer overflow conversion: too noisy, handled case-by-case
+      config:
+        global:
+          # Audit mode turns on the stricter checks, G204 (a subprocess
+          # started with a variable) among them. nightshift starts git, gh,
+          # glab, the editor and the user's token_cmd on purpose; a call site
+          # that does so says why with `//nolint:gosec // G204: <why>`, so an
+          # unmarked one is a finding to look at, not noise.
+          audit: true
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+      disabled-checks:
+        - whyNoLint      # nolintlint covers it
+        - hugeParam
+        - rangeValCopy
+        - unnamedResult
+        - importShadow
+        - builtinShadow
+    misspell:
+      locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    forbidigo:
+      analyze-types: true
+      # Everywhere, main.go included: main hands os.Stdin, os.Stdout and
+      # os.Stderr to cli.Execute, and from there everything writes to the
+      # writer it was given (the cobra command's OutOrStdout/ErrOrStderr, the
+      # runner's log file). That is what lets the tests capture the output,
+      # and what keeps the unattended runner from writing to a terminal that
+      # is not there.
+      forbid:
+        - pattern: ^(fmt\.Print(f|ln)?|print|println)$
+          msg: write to the io.Writer you were given (the cobra command's OutOrStdout/ErrOrStderr), not to the process's stdout
+        - pattern: ^log\.(Print|Fatal|Panic)(f|ln)?$
+          msg: no global logging; return an error or write to the configured writer
+
+  exclusions:
+    generated: lax
+    presets:
+      # `comments` is deliberately not listed: it would silence revive's
+      # exported-identifier doc comment checks, which this repository keeps
+      # even though every package is internal: the doc comment is where a
+      # contributor learns what a function promises.
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Relax security/style checks inside tests. They build throwaway
+      # repositories in t.TempDir(), run git there and talk to httptest
+      # servers, which is exactly what gosec and noctx would flag.
+      - path: _test\.go
+        linters:
+          - gosec
+          - bodyclose
+          - noctx
+          - errcheck
+    paths:
+      - third_party$
+      - builtin$
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      module-path: github.com/michaelbeutler/nightshift
+      # Group adjacent parameters of the same type: func(a, b int).
+      extra:
+        group-params: true
+    goimports:
+      local-prefixes:
+        - github.com/michaelbeutler/nightshift

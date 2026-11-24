@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+#
+# goreleaser configuration (v2 schema). Docs: https://goreleaser.com
+#
+# A pushed tag runs .github/workflows/release.yml, which runs
+# `goreleaser release --clean --release-notes <notes>` with the version pinned
+# there (GORELEASER_VERSION). CI's build job runs `goreleaser check` on every
+# pull request, so a broken file is caught before a tag needs it.
+# `just snapshot` builds the same archives locally into dist/ and publishes
+# nothing.
+version: 2
+
+project_name: nightshift
+
+# No `before` hooks: goreleaser's usual `go mod tidy` would rewrite go.mod on
+# the release runner, and CI's tidy job already refuses an untidy module
+# before anything can be tagged. The release workflow runs the tests itself.
+
+builds:
+  - id: nightshift
+    main: .
+    binary: nightshift
+    env:
+      # A static binary with no libc dependency: it runs on any Linux,
+      # including the minimal ones a service manager may start it on, and
+      # cross-compiles from one runner.
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    flags:
+      # No local paths in the binary (panics and debug info name module paths
+      # instead), so builds from different checkouts are byte-identical.
+      - -trimpath
+    ldflags:
+      # -s -w strip the symbol table and DWARF data: a smaller download, and
+      # nothing a user of a release binary needs.
+      - -s -w
+      # internal/version reads these; a plain `go install` leaves them empty
+      # and falls back to the build info the toolchain records.
+      # {{ .Version }} is the tag without its leading "v" (v0.2.0 -> 0.2.0);
+      # use {{ .Tag }} instead if `nightshift version` should print the "v"
+      # the way a `go install`ed binary does.
+      - -X github.com/michaelbeutler/nightshift/internal/version.Version={{ .Version }}
+      - -X github.com/michaelbeutler/nightshift/internal/version.Commit={{ .Commit }}
+      - -X github.com/michaelbeutler/nightshift/internal/version.Date={{ .Date }}
+    # File times inside the archives come from the commit, not the clock, so
+    # rebuilding a tag reproduces the same archives.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: nightshift
+    ids: [nightshift]
+    formats: [tar.gz]
+    # Windows users expect a zip, and Explorer opens one without extra tools.
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # nightshift_0.2.0_darwin_arm64.tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  # One file listing the SHA-256 of every archive, published with the release,
+  # so a download can be checked with `shasum -a 256 -c checksums.txt`.
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  # `just snapshot`: a version that cannot be mistaken for a release.
+  version_template: "{{ incpatch .Version }}-snapshot+{{ .ShortCommit }}"
+
+changelog:
+  # The notes come from scripts/release-notes.sh (the conventional-commit
+  # subjects since the previous release, grouped by type), which the release
+  # workflow passes with --release-notes. goreleaser's own changelog would
+  # list the same commits a second time, ungrouped.
+  disable: true
+
+release:
+  github:
+    owner: michaelbeutler
+    name: nightshift
+  name_template: "{{ .Tag }}"
+  # vX.Y.Z-rc.N is published as a GitHub pre-release, vX.Y.Z as a release.
+  # The release workflow has already refused a vX.Y.Z that is not on main.
+  prerelease: auto
+
+# Homebrew. There is no tap yet, so nothing is published to one. To enable it:
+#   1. create the repository michaelbeutler/homebrew-tap (empty is fine);
+#   2. add a fine-grained token with contents: write on that repository only
+#      as the HOMEBREW_TAP_TOKEN secret of this one, and pass it to the
+#      goreleaser step in release.yml (env: HOMEBREW_TAP_TOKEN: ...); the
+#      workflow's own GITHUB_TOKEN cannot write to another repository;
+#   3. uncomment the block below and run `goreleaser check`.
+# Recent goreleaser versions deprecate `brews` in favour of `homebrew_casks`
+# for prebuilt binaries; `goreleaser check` says which one the pinned version
+# wants, and the fields below carry over.
+#
+# brews:
+#   - name: nightshift
+#     ids: [nightshift]
+#     repository:
+#       owner: michaelbeutler
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     directory: Formula
+#     homepage: https://github.com/michaelbeutler/nightshift
+#     description: Schedule send for git
+#     license: MIT
+#     commit_author:
+#       name: goreleaserbot
+#       email: bot@goreleaser.com
+#     commit_msg_template: "chore: bump nightshift to {{ .Tag }}"
+#     # A release candidate stays out of the tap.
+#     skip_upload: auto
+#     test: |
+#       system "#{bin}/nightshift", "version"
