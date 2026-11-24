@@ -36,11 +36,10 @@ builds:
       # nothing a user of a release binary needs.
       - -s -w
       # internal/version reads these; a plain `go install` leaves them empty
-      # and falls back to the build info the toolchain records.
-      # {{ .Version }} is the tag without its leading "v" (v0.2.0 -> 0.2.0);
-      # use {{ .Tag }} instead if `nightshift version` should print the "v"
-      # the way a `go install`ed binary does.
-      - -X github.com/michaelbeutler/nightshift/internal/version.Version={{ .Version }}
+      # and falls back to the build info the toolchain records. {{ .Tag }}
+      # keeps the "v" (v0.2.0), so release and `go install` binaries print
+      # their version the same way.
+      - -X github.com/michaelbeutler/nightshift/internal/version.Version={{ .Tag }}
       - -X github.com/michaelbeutler/nightshift/internal/version.Commit={{ .Commit }}
       - -X github.com/michaelbeutler/nightshift/internal/version.Date={{ .Date }}
     # File times inside the archives come from the commit, not the clock, so
